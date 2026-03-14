@@ -213,10 +213,22 @@ router.get("/auth/me", auth, async (req, res) => {
   res.json({ success: true, user: toUserResponse(user) });
 });
 
-/* ================== ONLINE (إشعار الأصدقاء عند فتح التطبيق) ================== */
+/* ================== ONLINE STATUS (النقطة الخضراء) ================== */
+const onlineUsers = new Map(); // userId -> lastSeenAt
+const ONLINE_TTL_MS = 5000;
+
+function cleanupOnlineStale() {
+  const now = Date.now();
+  for (const [userId, lastSeen] of onlineUsers.entries()) {
+    if (now - lastSeen > ONLINE_TTL_MS) onlineUsers.delete(userId);
+  }
+}
+
+/* ================== ONLINE (إشعار الأصدقاء + تسجيل الاتصال) ================== */
 router.post("/auth/online", auth, async (req, res) => {
   try {
     const meId = req.user.id;
+    onlineUsers.set(meId, Date.now());
     const me = await User.findOne({ userId: meId }).select("name profileImage friends");
     if (!me || !me.friends || me.friends.length === 0) {
       return res.json({ success: true });
@@ -245,6 +257,16 @@ router.post("/auth/online", auth, async (req, res) => {
     console.error("online notify error:", err);
     res.json({ success: true });
   }
+});
+
+router.post("/auth/offline", auth, (req, res) => {
+  onlineUsers.delete(req.user.id);
+  res.json({ success: true });
+});
+
+router.get("/auth/online-users", auth, (req, res) => {
+  cleanupOnlineStale();
+  res.json({ success: true, userIds: Array.from(onlineUsers.keys()) });
 });
 
 /* ================== PUSH TOKEN (للإشعارات) ================== */
