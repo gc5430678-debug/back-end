@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-async function sendPushNotification(pushToken, title, body, imageUrl) {
+async function sendPushNotification(pushToken, title, body, imageUrl, data = {}) {
   if (!pushToken || !pushToken.startsWith("ExponentPushToken")) return;
   try {
     const img = imageUrl && String(imageUrl).trim();
@@ -12,6 +12,7 @@ async function sendPushNotification(pushToken, title, body, imageUrl) {
       sound: "default",
       priority: "high",
       channelId: "messages",
+      data: { ...data },
     };
     if (finalImg) {
       payload.richContent = { image: finalImg };

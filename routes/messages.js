@@ -195,16 +195,22 @@ router.post("/send", auth, async (req, res) => {
       await Message.deleteMany({ _id: { $in: idsToDelete } });
     }
 
-    // إرسال إشعار push للمستلم (حتى لو التطبيق مغلق)
+    // إرسال إشعار push للمستلم (اسم + صورة + نص — يعمل عند فتح التطبيق أو إغلاقه)
     const recipient = await User.findOne({ userId: toUserId }).select("pushToken");
     if (recipient?.pushToken) {
-      let notifBody = String(textVal || "").slice(0, 80);
-      if (audioUrl) notifBody = "رسالة صوتية";
-      else if (imageUrl) notifBody = "صورة";
-      else if (/^GIFT:/.test(textVal || "")) notifBody = "هدية";
+      let notifBody = String(textVal || "").slice(0, 100);
+      if (audioUrl) notifBody = "🎤 رسالة صوتية";
+      else if (imageUrl) notifBody = "📷 صورة";
+      else if (/^GIFT:/.test(textVal || "")) notifBody = "🎁 هدية";
       const baseUrl = getPublicBaseUrl(req);
       const imgUrl = buildImageUrl(fromUser.profileImage, baseUrl);
-      sendPushNotification(recipient.pushToken, fromUser.name || "رسالة جديدة", notifBody || "لديك رسالة جديدة", imgUrl).catch(() => {});
+      const notifTitle = fromUser.name || "رسالة جديدة";
+      sendPushNotification(recipient.pushToken, notifTitle, notifBody || "لديك رسالة جديدة", imgUrl, {
+        type: "message",
+        fromId,
+        fromName: fromUser.name || "",
+        fromProfileImage: fromUser.profileImage || "",
+      }).catch(() => {});
     }
 
     res.json({
