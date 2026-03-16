@@ -1,12 +1,34 @@
 const express = require("express");
+const path = require("path");
+const fs = require("fs");
+const multer = require("multer");
 const { auth } = require("../authGoogle/googleAuth");
 const User = require("../module/Users");
 const GroupChatMessage = require("../module/GroupChatMessage");
 const Wallet = require("../module/Wallet");
-const { sendPushNotification } = require("../utils/push");
+const { sendPushNotification, getBaseUrl } = require("../utils/push");
 const { AccessToken } = require("livekit-server-sdk");
 
 const router = express.Router();
+
+const musicDir = path.join(__dirname, "../uploads/music");
+if (!fs.existsSync(musicDir)) fs.mkdirSync(musicDir, { recursive: true });
+const musicUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_, __, cb) => cb(null, musicDir),
+    filename: (_, file, cb) => {
+      const ext = (path.extname(file.originalname || "") || ".mp3").toLowerCase();
+      cb(null, `music_${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`);
+    },
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_, file, cb) => {
+    const ok =
+      ["audio/mpeg", "audio/mp3", "audio/m4a", "audio/x-m4a", "audio/aac"].includes(file.mimetype) ||
+      [".mp3", ".m4a", ".aac"].some((e) => (file.originalname || "").toLowerCase().endsWith(e));
+    cb(null, !!ok);
+  },
+});
 
 const LIVEKIT_ROOM = "rolet-group-chat";
 
@@ -85,6 +107,19 @@ router.get("/group-chat/voice-token", auth, async (req, res) => {
   } catch (err) {
     console.error("voice-token error:", err);
     res.status(500).json({ success: false });
+  }
+});
+
+/** رفع أغنية للبث في الدردشة الجماعية */
+router.post("/group-chat/upload-music", auth, musicUpload.single("music"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: "الملف مطلوب" });
+    const base = getBaseUrl(req);
+    const musicUrl = `${base}/uploads/music/${req.file.filename}`;
+    res.json({ success: true, musicUrl });
+  } catch (err) {
+    console.error("upload-music error:", err);
+    res.status(500).json({ success: false, message: "خطأ في رفع الأغنية" });
   }
 });
 
