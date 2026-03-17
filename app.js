@@ -56,11 +56,11 @@ app.get("/health", (req, res) => {
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/mydb";
 
-// اتصال فوري — بدون انتظار (مع 0.0.0.0/0 في IP Access List)
+// Railway → Atlas: مهلات أطول (الاتصال السحابي يحتاج وقتاً)
 const mongooseOptions = {
-  serverSelectionTimeoutMS: 1000,
-  connectTimeoutMS: 1000,
-  socketTimeoutMS: 30000,
+  serverSelectionTimeoutMS: 30000,
+  connectTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
   maxPoolSize: 10,
   minPoolSize: 1,
   retryWrites: true,
