@@ -35,7 +35,7 @@ router.post("/follow", auth, async (req, res) => {
 
     res.json({ success: true, message: "تمت المتابعة" });
   } catch (err) {
-    console.log(err);
+    console.error("social/follow error:", err);
     res.status(500).json({ success: false, message: "خطأ بالسيرفر" });
   }
 });
@@ -64,7 +64,7 @@ router.post("/unfollow", auth, async (req, res) => {
 
     res.json({ success: true, message: "تم إلغاء المتابعة" });
   } catch (err) {
-    console.log(err);
+    console.error("social/unfollow error:", err);
     res.status(500).json({ success: false, message: "خطأ بالسيرفر" });
   }
 });
@@ -86,7 +86,7 @@ router.get("/followers", auth, async (req, res) => {
 
     res.json({ success: true, followers: list });
   } catch (err) {
-    console.log(err);
+    console.error("social error:", err);
     res.status(500).json({ success: false, message: "خطأ بالسيرفر" });
   }
 });
@@ -119,7 +119,7 @@ router.post("/friends/accept", auth, async (req, res) => {
 
     res.json({ success: true, message: "تم قبول الطلب" });
   } catch (err) {
-    console.log(err);
+    console.error("social error:", err);
     res.status(500).json({ success: false, message: "خطأ بالسيرفر" });
   }
 });
@@ -141,7 +141,7 @@ router.get("/friends", auth, async (req, res) => {
 
     res.json({ success: true, friends: list });
   } catch (err) {
-    console.log(err);
+    console.error("social error:", err);
     res.status(500).json({ success: false, message: "خطأ بالسيرفر" });
   }
 });
@@ -167,7 +167,7 @@ router.get("/following", auth, async (req, res) => {
 
     res.json({ success: true, following: list });
   } catch (err) {
-    console.log(err);
+    console.error("social error:", err);
     res.status(500).json({ success: false, message: "خطأ بالسيرفر" });
   }
 });
@@ -182,7 +182,7 @@ router.get("/is-following/:targetUserId", auth, async (req, res) => {
     const isFollowing = (target.followers || []).some((f) => f.userId === req.user.id);
     res.json({ success: true, isFollowing });
   } catch (err) {
-    console.log(err);
+    console.error("social error:", err);
     res.status(500).json({ success: false, message: "خطأ بالسيرفر" });
   }
 });
@@ -228,7 +228,7 @@ router.post("/block", auth, async (req, res) => {
 
     res.json({ success: true, message: "تم حظر المستخدم" });
   } catch (err) {
-    console.log(err);
+    console.error("social error:", err);
     res.status(500).json({ success: false, message: "خطأ بالسيرفر" });
   }
 });
@@ -249,7 +249,7 @@ router.post("/unblock", auth, async (req, res) => {
 
     res.json({ success: true, message: "تم إلغاء الحظر" });
   } catch (err) {
-    console.log(err);
+    console.error("social error:", err);
     res.status(500).json({ success: false, message: "خطأ بالسيرفر" });
   }
 });
@@ -309,7 +309,7 @@ router.get("/blocked", auth, async (req, res) => {
 
     res.json({ success: true, blocked: list });
   } catch (err) {
-    console.log(err);
+    console.error("social error:", err);
     res.status(500).json({ success: false, message: "خطأ بالسيرفر" });
   }
 });

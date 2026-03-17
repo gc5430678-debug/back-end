@@ -69,7 +69,7 @@ router.post("/upload-voice", auth, voiceUpload.single("voice"), async (req, res)
     const audioUrl = `${base}/uploads/voice/${req.file.filename}`;
     res.json({ success: true, audioUrl });
   } catch (err) {
-    console.log(err);
+    console.error("upload-voice error:", err);
     res.status(500).json({ success: false, message: "خطأ في رفع الصوت" });
   }
 });
@@ -82,7 +82,7 @@ router.post("/upload-image", auth, imageUpload.single("image"), async (req, res)
     const imageUrl = `${base}/uploads/images/${req.file.filename}`;
     res.json({ success: true, imageUrl });
   } catch (err) {
-    console.log(err);
+    console.error("upload-image error:", err);
     res.status(500).json({ success: false, message: "خطأ في رفع الصورة" });
   }
 });
@@ -232,7 +232,7 @@ router.post("/send", auth, async (req, res) => {
       to: { id: toUser.userId, name: toUser.name, profileImage: toUser.profileImage || "" },
     });
   } catch (err) {
-    console.log(err);
+    console.error("send message error:", err);
     res.status(500).json({ success: false, message: "خطأ في إرسال الرسالة" });
   }
 });
@@ -281,7 +281,7 @@ router.get("/inbox", auth, async (req, res) => {
 
     res.json({ success: true, messages: result });
   } catch (err) {
-    console.log(err);
+    console.error("inbox error:", err);
     res.status(500).json({ success: false, message: "خطأ في جلب الرسائل" });
   }
 });
@@ -317,7 +317,7 @@ router.get("/thread/:otherId", auth, async (req, res) => {
       })),
     });
   } catch (err) {
-    console.log(err);
+    console.error("thread error:", err);
     res.status(500).json({ success: false, message: "خطأ في جلب المحادثة" });
   }
 });
@@ -356,7 +356,7 @@ router.delete("/:id", auth, async (req, res) => {
     await Message.deleteOne({ _id: msgId });
     return res.json({ success: true });
   } catch (err) {
-    console.log(err);
+    console.error("delete message error:", err);
     res.status(500).json({ success: false, message: "خطأ في حذف الرسالة" });
   }
 });

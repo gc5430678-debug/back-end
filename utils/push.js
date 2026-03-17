@@ -49,8 +49,8 @@ function buildImageUrl(profileImage, baseUrl) {
 
 function getBaseUrl(req) {
   const proto = req.get("x-forwarded-proto") || req.protocol || "http";
-  const host = req.get("x-forwarded-host") || req.get("host");
-  return `${proto}://${host}`;
+  const host = req.get("x-forwarded-host") || req.get("host") || "";
+  return host ? `${proto}://${host}` : "http://localhost:3000";
 }
 
 /**

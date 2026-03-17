@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../module/Users");
 const multer = require("multer");
 const path = require("path");
+const { getBaseUrl } = require("../utils/push");
 
 const router = express.Router();
 
@@ -53,7 +54,7 @@ router.post("/register", async (req, res) => {
       },
     });
   } catch (err) {
-    console.log(err);
+    console.error("register error:", err);
     res.status(500).json({ message: "خطأ بالسيرفر" });
   }
 });
@@ -85,7 +86,7 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (err) {
-    console.log(err);
+    console.error("login error:", err);
     res.status(500).json({ message: "خطأ بالسيرفر" });
   }
 });
@@ -135,17 +136,10 @@ router.put("/update-profile", auth, async (req, res) => {
       },
     });
   } catch (err) {
-    console.log(err);
+    console.error("update-profile error:", err);
     res.status(500).json({ message: "خطأ بالسيرفر" });
   }
 });
-
-
-function getBaseUrl(req) {
-  const proto = req.get("x-forwarded-proto") || req.protocol || "https";
-  const host = req.get("x-forwarded-host") || req.get("host");
-  return host ? `${proto}://${host}` : "http://localhost:3000";
-}
 
 /* ================= SEARCH USERS BY ID ================= */
 router.get("/users/search", auth, async (req, res) => {
@@ -186,7 +180,7 @@ router.get("/users/search", auth, async (req, res) => {
       }),
     });
   } catch (err) {
-    console.log(err);
+    console.error("users/search error:", err);
     res.status(500).json({ success: false, message: "خطأ بالسيرفر" });
   }
 });
@@ -210,7 +204,7 @@ router.get("/me", auth, async (req, res) => {
       status: user.status,
     });
   } catch (err) {
-    console.log(err);
+    console.error("me error:", err);
     res.status(500).json({ message: "خطأ بالسيرفر" });
   }
 });

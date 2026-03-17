@@ -5,6 +5,7 @@ const fs = require("fs");
 const Moment = require("../module/Moment");
 const User = require("../module/Users");
 const { auth } = require("../authGoogle/googleAuth");
+const { getBaseUrl } = require("../utils/push");
 
 const router = express.Router();
 const MAX_VIDEO_SEC = 20;
@@ -34,13 +35,6 @@ const uploadFields = upload.fields([
   { name: "media", maxCount: 1 },
   { name: "thumbnail", maxCount: 1 },
 ]);
-
-// Helper: get base URL (works with localtunnel/ngrok)
-function getBaseUrl(req) {
-  const proto = req.get("x-forwarded-proto") || req.protocol || "https";
-  const host = req.get("x-forwarded-host") || req.get("host");
-  return `${proto}://${host}`;
-}
 
 // GET /api/moments — جلب كل اللحظات
 router.get("/moments", async (req, res) => {
