@@ -52,16 +52,25 @@ app.get("/health", (req, res) => {
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/mydb";
 
 const mongooseOptions = {
-  serverSelectionTimeoutMS: 60000,
-  connectTimeoutMS: 60000,
-  socketTimeoutMS: 45000,
+  serverSelectionTimeoutMS: 30000,
+  connectTimeoutMS: 30000,
+  socketTimeoutMS: 90000,
   maxPoolSize: 10,
+  maxIdleTimeMS: 60000,
   retryWrites: true,
+  retryReads: true,
 };
 
 mongoose.connect(MONGODB_URI, mongooseOptions)
   .then(() => console.log("MongoDB Connected ✅"))
   .catch((err) => console.log("MongoDB Error ❌", err));
+
+mongoose.connection.on("error", (err) => {
+  console.warn("MongoDB connection error:", err?.message || err);
+});
+mongoose.connection.on("disconnected", () => {
+  console.warn("MongoDB disconnected");
+});
 
 app.listen(3000, () => {
     console.log('Server running on http://localhost:3000')
