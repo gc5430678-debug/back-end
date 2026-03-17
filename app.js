@@ -56,29 +56,21 @@ app.get("/health", (req, res) => {
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/mydb";
 
-// مهلات أطول لتجنب انتهاء مهلة الاتصال مع Atlas (خاصة من Railway)
+// اتصال فوري — بدون انتظار (مع 0.0.0.0/0 في IP Access List)
 const mongooseOptions = {
-  serverSelectionTimeoutMS: 60000,
-  connectTimeoutMS: 45000,
-  socketTimeoutMS: 120000,
+  serverSelectionTimeoutMS: 1000,
+  connectTimeoutMS: 1000,
+  socketTimeoutMS: 30000,
   maxPoolSize: 10,
   minPoolSize: 1,
-  maxIdleTimeMS: 60000,
   retryWrites: true,
   retryReads: true,
 };
 
-// إعادة المحاولة عند فشل الاتصال الأولي
-function connectMongo(retries = 3) {
+function connectMongo() {
   mongoose.connect(MONGODB_URI, mongooseOptions)
     .then(() => console.log("MongoDB Connected ✅"))
-    .catch((err) => {
-      console.log("MongoDB Error ❌", err?.message || err);
-      if (retries > 0) {
-        console.log(`إعادة المحاولة بعد 5 ثوانٍ... (${retries} متبقية)`);
-        setTimeout(() => connectMongo(retries - 1), 5000);
-      }
-    });
+    .catch((err) => console.log("MongoDB Error ❌", err?.message || err));
 }
 connectMongo();
 
