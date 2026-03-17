@@ -9,7 +9,7 @@ const Wallet = require("../module/Wallet");
 
 // تخزين مؤقت للرسائل — يقلل الضغط على MongoDB عند الاستعلام المتكرر
 const messagesCache = { data: null, ts: 0 };
-const MESSAGES_CACHE_MS = 1500;
+const MESSAGES_CACHE_MS = 3000;
 const { sendPushNotification, getBaseUrl } = require("../utils/push");
 const { AccessToken } = require("livekit-server-sdk");
 
