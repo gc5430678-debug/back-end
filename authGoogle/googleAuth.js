@@ -98,6 +98,8 @@ router.post("/auth/request-pin", async (req, res) => {
 
     if (mode === "login") {
       if (!user) return res.status(404).json({ success: false, message: "البريد غير مسجل. قم بالتسجيل أولاً" });
+    } else if (mode === "signup") {
+      if (user) return res.status(409).json({ success: false, message: "البريد مسجّل مسبقاً. سجّل دخولك" });
     } else {
       if (!user) {
         user = await User.create({
@@ -115,9 +117,11 @@ router.post("/auth/request-pin", async (req, res) => {
     user.loginPinExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
     await user.save();
 
-    await sendPinEmail(trimmedEmail, pin);
-
     res.json({ success: true, message: "تم إرسال كود التفعيل إلى بريدك" });
+
+    sendPinEmail(trimmedEmail, pin).catch((e) =>
+      console.error("sendPinEmail background error:", e?.response?.data || e?.message)
+    );
   } catch (error) {
     console.error("request-pin error:", error?.response?.data || error.message);
     const msg = error?.response?.data?.message || error?.message || "فشل إرسال كود التفعيل";
