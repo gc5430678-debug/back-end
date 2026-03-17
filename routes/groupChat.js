@@ -10,7 +10,7 @@ const Wallet = require("../module/Wallet");
 // تخزين مؤقت للرسائل — يقلل الضغط على MongoDB عند الاستعلام المتكرر
 const messagesCache = { data: null, ts: 0 };
 const MESSAGES_CACHE_MS = 3000;
-const { sendPushNotification, getBaseUrl } = require("../utils/push");
+const { getBaseUrl } = require("../utils/push");
 const { AccessToken } = require("livekit-server-sdk");
 
 const router = express.Router();
@@ -228,126 +228,6 @@ router.get("/group-chat/users", auth, async (req, res) => {
   } catch (err) {
     console.error("group-chat users error:", err);
     res.status(500).json({ success: false });
-  }
-});
-
-/** إرسال رسالة في الدردشة الجماعية */
-router.post("/group-chat/send", auth, async (req, res) => {
-  try {
-    const fromId = req.user.id;
-    touchUser(fromId);
-    cleanupStale();
-    const { text, audioUrl, audioDurationSeconds, imageUrl, toId, giftAmount } = req.body;
-    const isVoice = !!audioUrl;
-    const isImage = !!imageUrl;
-    const textVal = isVoice ? "🎤 رسالة صوتية" : isImage ? "📷 صورة" : (text || "").trim();
-    if (!isVoice && !isImage && !textVal) {
-      return res.status(400).json({ success: false, message: "النص أو المحتوى مطلوب" });
-    }
-
-    const fromUser = await User.findOne({ userId: fromId }).select("userId name profileImage age gender");
-    if (!fromUser) return res.status(404).json({ success: false, message: "المستخدم غير موجود" });
-
-    let finalText = String(textVal).slice(0, 500);
-    let giftToId = toId || null;
-
-    const giftMatch = String(textVal).match(/^GIFT:([^:]+):(\d+)$/);
-    if (giftMatch) {
-      const amount = parseInt(giftMatch[2], 10);
-      if (Number.isFinite(amount) && amount > 0 && giftToId) {
-        let senderWallet = await Wallet.findOne({ userId: fromId });
-        if (!senderWallet) {
-          senderWallet = await Wallet.create({ userId: fromId, totalGold: 0, chargedGold: 0, freeGold: 0, diamonds: 0, transactions: [] });
-        }
-        const totalAvail = (senderWallet.chargedGold ?? 0) + (senderWallet.freeGold ?? 0);
-        if (totalAvail < amount) {
-          return res.status(400).json({ success: false, message: "رصيدك من الذهب غير كافٍ لإرسال الهدية" });
-        }
-        const charged = senderWallet.chargedGold ?? 0;
-        const free = senderWallet.freeGold ?? 0;
-        const takeFromCharged = Math.min(charged, amount);
-        const takeFromFree = amount - takeFromCharged;
-        senderWallet.chargedGold = charged - takeFromCharged;
-        senderWallet.freeGold = free - takeFromFree;
-        senderWallet.totalGold = senderWallet.chargedGold + senderWallet.freeGold;
-        senderWallet.diamonds = Math.round(((senderWallet.diamonds ?? 0) + amount * 0.001) * 100) / 100;
-        await senderWallet.save();
-
-        const diamondsEarned = Math.round((takeFromCharged * 0.45 + takeFromFree * 0.001) * 100) / 100;
-        let receiverWallet = await Wallet.findOne({ userId: giftToId });
-        if (!receiverWallet) {
-          receiverWallet = await Wallet.create({ userId: giftToId, totalGold: 0, chargedGold: 0, freeGold: 0, diamonds: 0, transactions: [] });
-        }
-        receiverWallet.diamonds = Math.round(((receiverWallet.diamonds ?? 0) + diamondsEarned) * 100) / 100;
-        await receiverWallet.save();
-      }
-    }
-
-    const msg = await GroupChatMessage.create({
-      roomId: "main",
-      fromId,
-      fromName: fromUser.name || "مستخدم",
-      fromProfileImage: fromUser.profileImage || null,
-      toId: giftToId,
-      text: finalText,
-      audioUrl: audioUrl || null,
-      audioDurationSeconds: audioDurationSeconds != null ? Number(audioDurationSeconds) : null,
-      imageUrl: imageUrl || null,
-    });
-
-    const MAX = 250;
-    const all = await GroupChatMessage.find({ roomId: "main" }).sort({ createdAt: 1 }).select("_id").lean();
-    if (all.length > MAX) {
-      const toDel = all.slice(0, all.length - MAX).map((m) => m._id);
-      await GroupChatMessage.deleteMany({ _id: { $in: toDel } });
-    }
-
-    // إرسال إشعار push لجميع المستخدمين في الغرفة (ما عدا المرسل)
-    const notifyUserIds = Array.from(roomUsers.keys()).filter((id) => id !== fromId);
-    if (notifyUserIds.length > 0) {
-      const recipients = await User.find({ userId: { $in: notifyUserIds }, pushToken: { $exists: true, $ne: "" } }).select("userId pushToken").lean();
-      let notifBody = String(finalText || "").slice(0, 80);
-      if (audioUrl) notifBody = "🎤 رسالة صوتية";
-      else if (imageUrl) notifBody = "📷 صورة";
-      else if (/^GIFT:/.test(finalText || "")) notifBody = "🎁 هدية";
-      const notifTitle = `${fromUser.name || "مستخدم"} في الدردشة الجماعية`;
-      for (const r of recipients) {
-        if (r.pushToken) {
-          sendPushNotification(r.pushToken, notifTitle, notifBody || "رسالة جديدة", null, {
-            type: "groupMessage",
-            fromId,
-            fromName: fromUser.name || "",
-          }).catch((e) => console.error("[groupChat] push error:", e?.message));
-        }
-      }
-    }
-
-    let fromWallet = await Wallet.findOne({ userId: fromId }).select("diamonds chargedGold").lean();
-    if (!fromWallet) fromWallet = { diamonds: 0, chargedGold: 0 };
-    messagesCache.data = null;
-    messagesCache.ts = 0;
-    res.json({
-      success: true,
-      message: {
-        id: String(msg._id),
-        fromId: msg.fromId,
-        fromName: msg.fromName,
-        fromProfileImage: msg.fromProfileImage,
-        fromAge: fromUser.age ?? null,
-        fromGender: fromUser.gender || null,
-        fromDiamonds: fromWallet.diamonds ?? 0,
-        fromChargedGold: fromWallet.chargedGold ?? 0,
-        toId: msg.toId,
-        text: msg.text,
-        createdAt: msg.createdAt,
-        audioUrl: msg.audioUrl,
-        audioDurationSeconds: msg.audioDurationSeconds,
-        imageUrl: msg.imageUrl,
-      },
-    });
-  } catch (err) {
-    console.error("group-chat send error:", err);
-    res.status(500).json({ success: false, message: "خطأ في إرسال الرسالة" });
   }
 });
 
