@@ -249,6 +249,7 @@ router.post("/group-chat/send", auth, async (req, res) => {
       giftAmount,
       replyToText,
       replyToFromId,
+      replyToFromName,
     } = req.body;
 
     const fromId = req.user.id;
@@ -284,7 +285,7 @@ router.post("/group-chat/send", auth, async (req, res) => {
       text: String(textVal).slice(0, 500),
       replyToText: replyToText ? String(replyToText).slice(0, 300) : null,
       replyToFromId: replyToFromId ? String(replyToFromId) : null,
-      replyToFromName: null,
+      replyToFromName: replyToFromName ? String(replyToFromName).slice(0, 100) : null,
       audioUrl: audioUrl || null,
       audioDurationSeconds: audioDurationSeconds != null ? Number(audioDurationSeconds) : null,
       imageUrl: imageUrl || null,
