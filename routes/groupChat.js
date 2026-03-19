@@ -310,9 +310,44 @@ router.post("/group-chat/send", auth, async (req, res) => {
     const fromId = req.user.id;
     const isVoice = !!audioUrl;
     const isImage = !!imageUrl;
-    const textVal = isVoice ? "🎤 رسالة صوتية" : isImage ? "📷 صورة" : (text || "").trim();
+    const isGift = !!(giftAmount && Number(giftAmount) > 0);
+    const textVal = isVoice ? "🎤 رسالة صوتية" : isImage ? "📷 صورة" : isGift ? (text || "").trim() : (text || "").trim();
     if (!isVoice && !isImage && !textVal) {
       return res.status(400).json({ success: false, message: "النص أو المحتوى مطلوب" });
+    }
+
+    if (isGift && Number(giftAmount) > 0) {
+      const giftMatch = String(textVal).match(/^GIFT:([^:]+):(\d+)$/);
+      if (giftMatch) {
+        const amount = parseInt(giftMatch[2], 10);
+        if (Number.isFinite(amount) && amount > 0) {
+          let senderWallet = await Wallet.findOne({ userId: fromId });
+          if (!senderWallet) {
+            senderWallet = await Wallet.create({
+              userId: fromId,
+              totalGold: 0,
+              chargedGold: 0,
+              freeGold: 0,
+              diamonds: 0,
+              transactions: [],
+            });
+          }
+          const totalAvail = (senderWallet.chargedGold ?? 0) + (senderWallet.freeGold ?? 0);
+          if (totalAvail < amount) {
+            return res.status(400).json({ success: false, message: "رصيدك من الذهب غير كافٍ لإرسال الهدية" });
+          }
+          const charged = senderWallet.chargedGold ?? 0;
+          const free = senderWallet.freeGold ?? 0;
+          const takeFromCharged = Math.min(charged, amount);
+          const takeFromFree = amount - takeFromCharged;
+          senderWallet.chargedGold = charged - takeFromCharged;
+          senderWallet.freeGold = free - takeFromFree;
+          senderWallet.totalGold = senderWallet.chargedGold + senderWallet.freeGold;
+          const senderDiamonds = Math.round(amount * 0.001 * 100) / 100;
+          senderWallet.diamonds = Math.round(((senderWallet.diamonds ?? 0) + senderDiamonds) * 100) / 100;
+          await senderWallet.save();
+        }
+      }
     }
 
     const fromUser = await User.findOne({ userId: fromId }).select("userId name profileImage age gender").lean();
