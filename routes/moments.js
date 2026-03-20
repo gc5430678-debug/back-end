@@ -37,7 +37,7 @@ const uploadFields = upload.fields([
 ]);
 
 let momentsCache = { data: null, ts: 0 };
-const MOMENTS_CACHE_TTL = 2000;
+const MOMENTS_CACHE_TTL = 5000;
 
 // GET /api/moments — جلب كل اللحظات
 router.get("/moments", async (req, res) => {

@@ -21,4 +21,6 @@ const MomentSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+MomentSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model("Moment", MomentSchema);

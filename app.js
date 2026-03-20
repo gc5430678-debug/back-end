@@ -12,9 +12,9 @@ dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
 // Trust proxy (for localtunnel/ngrok)
 app.set("trust proxy", true);
 
-// Middleware — ضغط الاستجابات (gzip) لتقليل مخرج الشبكة والتكلفة
+// Middleware — ضغط سريع (level 3) لتقليل الحجم مع استجابة أسرع
 const compression = require("compression");
-app.use(compression({ level: 6, threshold: 0 }));
+app.use(compression({ level: 3, threshold: 512 }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({

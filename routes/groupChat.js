@@ -47,13 +47,12 @@ const musicUpload = multer({
 
 const MAX_VISITORS = 100;
 
-// POST /api/group-chat/join
+// POST /api/group-chat/join — استجابة فورية (تنظيف الزوار في الخلفية)
 router.post("/group-chat/join", auth, async (req, res) => {
   try {
     const userId = req.user.id;
     roomMembers.add(userId);
 
-    // تخزين في قائمة "all" — كل من دخل يبقى حتى لو خرج
     const user = await User.findOne({ userId }).select("userId name profileImage gender").lean();
     await GroupChatVisitor.findOneAndUpdate(
       { userId },
@@ -67,20 +66,20 @@ router.post("/group-chat/join", auth, async (req, res) => {
       { upsert: true, new: true }
     );
 
-    // حذف الأقدم إذا تجاوزنا الحد
-    const count = await GroupChatVisitor.countDocuments();
-    if (count > MAX_VISITORS) {
-      const toDelete = await GroupChatVisitor.find()
-        .sort({ lastJoinedAt: 1 })
-        .limit(count - MAX_VISITORS)
-        .select("_id")
-        .lean();
-      if (toDelete.length) {
-        await GroupChatVisitor.deleteMany({ _id: { $in: toDelete.map((v) => v._id) } });
-      }
-    }
-
+    usersCache = { data: null, ts: 0 };
     res.json({ success: true });
+
+    setImmediate(async () => {
+      try {
+        const count = await GroupChatVisitor.countDocuments();
+        if (count > MAX_VISITORS) {
+          const toDelete = await GroupChatVisitor.find().sort({ lastJoinedAt: 1 }).limit(count - MAX_VISITORS).select("_id").lean();
+          if (toDelete.length) await GroupChatVisitor.deleteMany({ _id: { $in: toDelete.map((v) => v._id) } });
+        }
+      } catch (e) {
+        console.error("group-chat visitor cleanup:", e?.message);
+      }
+    });
   } catch (err) {
     console.error("group-chat join error:", err);
     res.status(500).json({ success: false, message: "خطأ في الانضمام" });
@@ -160,12 +159,19 @@ router.get("/group-chat/slots", auth, async (req, res) => {
   }
 });
 
-// GET /api/group-chat/users — قائمة "all": كل من دخل الدردشة (حتى لو خرج)
+let usersCache = { data: null, ts: 0 };
+const USERS_CACHE_TTL = 3000;
+
+// GET /api/group-chat/users — قائمة "all" مع cache
 router.get("/group-chat/users", auth, async (req, res) => {
+  if (usersCache.data && Date.now() - usersCache.ts < USERS_CACHE_TTL) {
+    return res.json(usersCache.data);
+  }
   try {
     const visitors = await GroupChatVisitor.find()
       .sort({ lastJoinedAt: -1 })
       .limit(MAX_VISITORS)
+      .select("userId name profileImage gender")
       .lean();
     const list = visitors.map((v) => ({
       userId: v.userId,
@@ -173,7 +179,9 @@ router.get("/group-chat/users", auth, async (req, res) => {
       profileImage: v.profileImage || null,
       gender: v.gender || null,
     }));
-    res.json({ success: true, users: list });
+    const payload = { success: true, users: list };
+    usersCache = { data: payload, ts: Date.now() };
+    res.json(payload);
   } catch (err) {
     console.error("group-chat users error:", err);
     res.status(500).json({ success: false, message: "خطأ في جلب المستخدمين" });
@@ -265,7 +273,7 @@ router.post("/group-chat/upload-music", auth, musicUpload.single("music"), async
 
 // تخزين مؤقت — استجابة فورية عند الطلبات المتكررة
 let messagesCache = { data: [], ts: 0 };
-const CACHE_TTL_MS = 1500;
+const CACHE_TTL_MS = 4000;
 
 // GET /api/group-chat/messages — جلب رسائل الدردشة الجماعية
 router.get("/group-chat/messages", auth, async (req, res) => {
@@ -278,6 +286,7 @@ router.get("/group-chat/messages", auth, async (req, res) => {
     const msgs = await GroupChatMessage.find({})
       .sort({ createdAt: 1 })
       .limit(limit)
+      .select("fromId fromName fromProfileImage fromAge fromGender fromDiamonds fromChargedGold toId giftRecipients text createdAt replyToText replyToFromId replyToFromName audioUrl audioDurationSeconds imageUrl")
       .lean();
 
     const fromIds = [...new Set(msgs.map((m) => m.fromId))];
