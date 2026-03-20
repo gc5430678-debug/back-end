@@ -12,12 +12,9 @@ dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
 // Trust proxy (for localtunnel/ngrok)
 app.set("trust proxy", true);
 
-// Middleware — ضغط الاستجابات لتسريع التحميل
-try {
-  app.use(require("compression")());
-} catch {
-  // compression غير مُثبت — شغّل: npm install compression
-}
+// Middleware — ضغط الاستجابات (gzip) لتقليل مخرج الشبكة والتكلفة
+const compression = require("compression");
+app.use(compression({ level: 6, threshold: 0 }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
@@ -46,8 +43,12 @@ app.use("/api/profile", profileLikesRouter); // إعجاب البروفايل
 app.use("/api", groupChatRouter); // الدردشة الجماعية
 app.use("/api/messages", messagesRouter);
 
-// Static files
-app.use("/uploads", express.static("uploads"));
+// Static files — مع cache طويل لتقليل إعادة التحميل
+app.use("/uploads", express.static("uploads", {
+  maxAge: "7d",
+  etag: true,
+  lastModified: true,
+}));
 
 // Health check
 app.get("/health", (req, res) => {
